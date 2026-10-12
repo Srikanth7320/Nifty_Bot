@@ -1,0 +1,9 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+data/active_stocks.csv
+data/sold_stocks.csv
+data/trades_history.csv
+data/cooling_period.csv
+data/upstox_nse_instruments.json
