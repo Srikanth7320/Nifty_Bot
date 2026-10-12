@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">🔴 Sold Stocks History</h2>
+<div class="card shadow-sm border-0">
+    <div class="card-body table-responsive">
+        <table class="table align-middle table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Symbol</th>
+                    <th>Sold Time</th>
+                    <th>Bought Price</th>
+                    <th>Sold Price</th>
+                    <th>Quantity</th>
+                    <th>Realized Profit / Loss</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in sold_stocks %}
+                <tr>
+                    <td class="fw-bold">{{ stock.symbol }}</td>
+                    <td class="small text-muted">{{ stock.sold_time }}</td>
+                    <td>₹{{ stock.buy_price }}</td>
+                    <td>₹{{ stock.sold_price }}</td>
+                    <td>{{ stock.quantity }}</td>
+                    <td class="fw-bold {% if stock.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ₹{{ stock.profit }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No sold stocks recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

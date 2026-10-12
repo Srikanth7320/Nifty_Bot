@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">🟢 Active Bought Stocks</h2>
+<div class="card shadow-sm border-0">
+    <div class="card-body table-responsive">
+        <table class="table align-middle table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Symbol</th>
+                    <th>Buy Time</th>
+                    <th>Buy Price</th>
+                    <th>Current Price</th>
+                    <th>Quantity</th>
+                    <th>Invested</th>
+                    <th>Current Value</th>
+                    <th>P&L</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in active_stocks %}
+                <tr>
+                    <td class="fw-bold">{{ stock.symbol }}</td>
+                    <td class="small text-muted">{{ stock.buy_time }}</td>
+                    <td>₹{{ stock.buy_price }}</td>
+                    <td>{% if stock.current_price is not none %}₹{{ stock.current_price }}{% else %}<span class="text-muted">Unavailable</span>{% endif %}</td>
+                    <td>
+                        <form action="/update_quantity" method="POST" class="d-flex align-items-center">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="symbol" value="{{ stock.symbol }}">
+                            <input type="number" name="quantity" value="{{ stock.quantity }}" min="1" class="form-control form-control-sm me-2" style="width: 75px;">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Save</button>
+                        </form>
+                    </td>
+                    <td>₹{{ stock.invested }}</td>
+                    <td>{% if stock.current_val is not none %}₹{{ stock.current_val }}{% else %}—{% endif %}</td>
+                    <td class="fw-bold {% if stock.pnl is not none and stock.pnl >= 0 %}text-success{% elif stock.pnl is not none %}text-danger{% endif %}">
+                        {% if stock.pnl is not none %}₹{{ stock.pnl }} ({{ stock.pnl_pct }}%){% else %}<span class="text-muted">Unavailable — no fresh quote</span>{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No active bought stocks currently.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

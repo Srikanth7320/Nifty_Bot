@@ -1,0 +1,1 @@
+The full NSE EQ-series universe is downloaded from the official NSE equity list into nse_equity_symbols.csv at startup. If NSE is temporarily unavailable, a previously downloaded full-universe cache is retained. A fresh install with no valid cache skips scans rather than silently using a partial sample.

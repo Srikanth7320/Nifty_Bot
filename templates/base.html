@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Ensures proper scaling on mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSE Equity Paper Trading Bot</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-ticker { background:#101820; color:#e8f1f5; border-bottom:1px solid #33434e; overflow:hidden; white-space:nowrap; }
+        .status-ticker-track { display:inline-flex; gap:2.5rem; padding:.55rem 0; min-width:max-content; animation:ticker-scroll 38s linear infinite; }
+        .status-ticker:hover .status-ticker-track { animation-play-state:paused; }
+        .status-ticker-item { font-size:.85rem; }
+        .status-ticker-dot { color:#5ee0a0; padding-right:.5rem; }
+        @keyframes ticker-scroll { from { transform:translateX(100vw); } to { transform:translateX(-100%); } }
+        .status-feed { max-height:260px; overflow:auto; }
+        .status-feed-item { border-bottom:1px solid #e9ecef; padding:.55rem .75rem; font-size:.9rem; }
+        .status-feed-item:last-child { border-bottom:0; }
+        .status-time { color:#6c757d; font-variant-numeric:tabular-nums; margin-right:.5rem; }
+        .status-level-success { border-left:3px solid #198754; }
+        .status-level-warning { border-left:3px solid #ffc107; }
+        .status-level-error { border-left:3px solid #dc3545; }
+        @media (prefers-reduced-motion: reduce) { .status-ticker-track { animation:none; } }
+        /* Mobile-friendly adjustments */
+        body {
+            font-size: 0.95rem;
+        }
+        @media (max-width: 768px) {
+            h2 {
+                font-size: 1.5rem;
+            }
+            .table th, .table td {
+                white-space: nowrap; /* Prevents text wrapping issues inside tables on mobile */
+            }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Responsive Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">📈 NSE Equity Bot</a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto py-2">
+                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/active">Active Stocks</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/sold">Sold Stocks</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/cooling">Cooling Period</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/about">About &amp; Rules</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="status-ticker" aria-label="Live bot status ticker" role="status">
+        <div class="status-ticker-track" id="statusTickerTrack"><span class="status-ticker-item"><span class="status-ticker-dot">●</span>Waiting for live bot status…</span></div>
+    </div>
+
+    <!-- Main Container with Responsive Padding -->
+    <div class="container py-3 py-md-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+    (function () {
+        const ticker = document.getElementById('statusTickerTrack');
+        const feed = document.getElementById('statusFeed');
+        let lastSignature = '';
+        async function refreshStatus() {
+            try {
+                const response = await fetch('{{ url_for("api_status") }}', {cache: 'no-store'});
+                if (!response.ok) return;
+                const payload = await response.json();
+                const events = payload.events || [];
+                const signature = events.map(e => e.timestamp + e.message).join('|');
+                if (signature === lastSignature) return;
+                lastSignature = signature;
+                if (ticker) {
+                    ticker.replaceChildren();
+                    const tickerEvents = events.slice(0, 12).reverse();
+                    if (!tickerEvents.length) tickerEvents.push({time:'', message:'Waiting for bot events'});
+                    // Duplicate items for a continuous scrolling loop.
+                    [tickerEvents, tickerEvents].forEach(group => group.forEach(event => {
+                        const span = document.createElement('span');
+                        span.className = 'status-ticker-item';
+                        const dot = document.createElement('span'); dot.className = 'status-ticker-dot'; dot.textContent = '●';
+                        span.append(dot, document.createTextNode((event.time ? event.time + ' · ' : '') + event.message));
+                        ticker.appendChild(span);
+                    }));
+                }
+                if (feed) {
+                    feed.replaceChildren();
+                    events.forEach(event => {
+                        const item = document.createElement('div');
+                        item.className = 'status-feed-item status-level-' + (['info','success','warning','error'].includes(event.level) ? event.level : 'info');
+                        const time = document.createElement('span'); time.className = 'status-time'; time.textContent = event.time || '';
+                        item.append(time, document.createTextNode(event.message || ''));
+                        feed.appendChild(item);
+                    });
+                    if (!events.length) feed.textContent = 'No events yet. Start the bot to see runtime updates.';
+                }
+            } catch (_) { /* transient network errors are retried on the next poll */ }
+        }
+        refreshStatus();
+        window.setInterval(refreshStatus, 3000);
+    })();
+    </script>
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

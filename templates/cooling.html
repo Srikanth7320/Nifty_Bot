@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">❄️ Cooling Period Stocks</h2>
+<div class="card shadow-sm border-0">
+    <div class="card-body table-responsive">
+        <table class="table align-middle table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Symbol</th>
+                    <th>Cooling Start Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in cooling_stocks %}
+                <tr>
+                    <td class="fw-bold">{{ stock.symbol }}</td>
+                    <td class="small text-muted">{{ stock.time }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" class="text-center text-muted py-4">No stocks currently in cooling period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
