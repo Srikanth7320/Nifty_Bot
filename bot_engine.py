@@ -604,3 +604,32 @@ def record_sell_trade(symbol, buy_price, sold_price, quantity):
     cooling_df = cooling_df[cooling_df["symbol"].astype(str).str.upper() != str(symbol).upper()]
     cooling_df = pd.concat([cooling_df, pd.DataFrame([{"symbol": symbol, "time": current_time}])], ignore_index=True)
     cooling_df.to_csv(COOLING_FILE, index=False)
+
+
+# Shared lock and atomic writer used by the Flask dashboard's paper portfolio edits.
+import threading
+import tempfile
+
+DATA_LOCK = threading.RLock()
+
+def _write_csv_atomic(dataframe, destination):
+    """Write a DataFrame to CSV via a temporary file and atomic replacement."""
+    destination = os.path.abspath(os.fspath(destination))
+    directory = os.path.dirname(destination) or "."
+    os.makedirs(directory, exist_ok=True)
+
+    fd, temp_path = tempfile.mkstemp(
+        prefix=".csv_update_", suffix=".tmp", dir=directory
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            dataframe.to_csv(handle, index=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, destination)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
