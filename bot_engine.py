@@ -290,7 +290,12 @@ def calculate_atr(hist, window=14):
 
 
 def trading_sessions_held(history, entry_time):
-    """Count trading sessions held, counting the entry session as session one."""
+    """Count sessions held using supplied history, not the machine's current date.
+
+    The live/entry session counts as one. If history already contains the entry
+    date, count that completed session plus the live session (e.g. 2). If the
+    entry date is after the last history date, only the entry session counts (1).
+    """
     try:
         entry = pd.Timestamp(entry_time)
         if entry.tzinfo is not None:
@@ -298,18 +303,15 @@ def trading_sessions_held(history, entry_time):
         entry_date = entry.date()
         if history is None or history.empty:
             return 1
+
         idx = pd.DatetimeIndex(history.index)
         if idx.tz is not None:
             idx = idx.tz_convert(IST).tz_localize(None)
-        dates = sorted(set(x.date() for x in idx))
-        # Include the entry date even when today's partial candle is not in history.
-        sessions = [d for d in dates if d >= entry_date]
-        if entry_date not in sessions:
-            sessions.insert(0, entry_date)
-        current_date = pd.Timestamp.now(tz=IST).date()
-        if current_date >= entry_date and current_date not in sessions:
-            sessions.append(current_date)
-        return max(1, sum(1 for d in sessions if entry_date <= d <= current_date))
+        dates = sorted(set(ts.date() for ts in idx))
+        if not dates or entry_date > dates[-1]:
+            return 1
+        completed_since_entry = sum(1 for day in dates if day >= entry_date)
+        return max(1, completed_since_entry + 1)
     except Exception:
         return 1
 
