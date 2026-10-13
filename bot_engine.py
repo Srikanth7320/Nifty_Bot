@@ -32,6 +32,7 @@ MAX_PRICE = float(os.getenv("MAX_STOCK_PRICE", "5000"))
 RSI_BUY_THRESHOLD = float(os.getenv("RSI_BUY_THRESHOLD", "55"))
 RSI_EXIT_THRESHOLD = float(os.getenv("RSI_EXIT_THRESHOLD", "45"))
 MAX_SCAN_SYMBOLS = max(1, int(os.getenv("MAX_SCAN_SYMBOLS", "50")))
+SCAN_INTERVAL_MINUTES = max(1, int(os.getenv("SCAN_INTERVAL_MINUTES", "15")))
 
 # Optional comma-separated YYYY-MM-DD values in .env. The defaults below are
 # exchange holidays listed for 2026; keep this list updated each calendar year.
@@ -55,11 +56,16 @@ if GEMINI_API_KEY and genai is not None:
 
 DATA_DIR = os.getenv("DATA_DIR", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
-SYMBOLS_FILE = os.path.join(DATA_DIR, "nifty500_symbols.csv")
+SYMBOLS_FILE = os.path.join(DATA_DIR, "nse_equity_symbols.csv")
 ACTIVE_FILE = os.path.join(DATA_DIR, "active_stocks.csv")
 SOLD_FILE = os.path.join(DATA_DIR, "sold_stocks.csv")
 TRADES_FILE = os.path.join(DATA_DIR, "trades_history.csv")
 COOLING_FILE = os.path.join(DATA_DIR, "cooling_period.csv")
+
+ACTIVE_COLUMNS = ["symbol", "buy_price", "quantity", "buy_time"]
+SOLD_COLUMNS = ["symbol", "buy_price", "sold_price", "quantity", "profit", "sold_time"]
+COOLING_COLUMNS = ["symbol", "time"]
+TRADE_COLUMNS = ["time", "symbol", "price", "type"]
 
 # Read by app/dashboard code if desired. Status describes the latest completed
 # scan, while LAST_QUOTE_PROVIDER describes the latest successful quote fetch.
@@ -112,28 +118,36 @@ def send_telegram(message):
         print(f"Telegram error: {exc}")
 
 
-def refresh_nifty500_symbols():
-    url = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
-    headers = {"User-Agent": "Mozilla/5.0 (compatible; NSEPaperBot/1.0)"}
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        # Validate the response before replacing the current local symbol file.
-        from io import BytesIO
-        candidate = pd.read_csv(BytesIO(response.content))
-        if candidate.empty or "Symbol" not in candidate.columns:
-            raise ValueError("NSE response did not contain a Symbol column")
-        candidate.to_csv(SYMBOLS_FILE, index=False)
-        print(f"Updated Nifty 500 symbols: {len(candidate)} rows")
-        return True
-    except Exception as exc:
-        print(f"NSE symbol-list refresh failed; using local cache if available: {exc}")
+def refresh_nse_equity_symbols():
+    """Validate the cached NSE equity universe without overwriting it.
 
+    The VM already has data/nse_equity_symbols.csv. This function deliberately
+    preserves that file rather than replacing it with the smaller Nifty 500 list.
+    It validates the cache; it does not download a fresh NSE symbol list.
+    """
     if not os.path.exists(SYMBOLS_FILE) or os.path.getsize(SYMBOLS_FILE) == 0:
-        pd.DataFrame({"Symbol": ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK"]}).to_csv(
-            SYMBOLS_FILE, index=False
-        )
-    return False
+        print(f"NSE equity symbol file is missing or empty: {SYMBOLS_FILE}")
+        return False
+
+    symbols_df = _read_csv_or_empty(SYMBOLS_FILE, ["Symbol"])
+    if symbols_df.empty:
+        print(f"NSE equity symbol file is invalid or empty: {SYMBOLS_FILE}")
+        return False
+
+    symbol_col = "Symbol" if "Symbol" in symbols_df.columns else symbols_df.columns[0]
+    symbols = symbols_df[symbol_col].dropna().astype(str).str.strip()
+    symbols = symbols[symbols != ""]
+    if symbols.empty:
+        print(f"NSE equity symbol file has no usable symbols: {SYMBOLS_FILE}")
+        return False
+
+    print(f"Validated {symbols.nunique()} unique NSE equity symbols from {SYMBOLS_FILE}")
+    return True
+
+
+def refresh_nifty500_symbols():
+    """Backward-compatible name; validates the configured NSE symbol cache."""
+    return refresh_nse_equity_symbols()
 
 
 def is_market_open():
@@ -290,12 +304,7 @@ def calculate_atr(hist, window=14):
 
 
 def trading_sessions_held(history, entry_time):
-    """Count sessions held using supplied history, not the machine's current date.
-
-    The live/entry session counts as one. If history already contains the entry
-    date, count that completed session plus the live session (e.g. 2). If the
-    entry date is after the last history date, only the entry session counts (1).
-    """
+    """Count trading sessions held, counting the entry session as session one."""
     try:
         entry = pd.Timestamp(entry_time)
         if entry.tzinfo is not None:
@@ -303,15 +312,18 @@ def trading_sessions_held(history, entry_time):
         entry_date = entry.date()
         if history is None or history.empty:
             return 1
-
         idx = pd.DatetimeIndex(history.index)
         if idx.tz is not None:
             idx = idx.tz_convert(IST).tz_localize(None)
-        dates = sorted(set(ts.date() for ts in idx))
-        if not dates or entry_date > dates[-1]:
-            return 1
-        completed_since_entry = sum(1 for day in dates if day >= entry_date)
-        return max(1, completed_since_entry + 1)
+        dates = sorted(set(x.date() for x in idx))
+        # Include the entry date even when today's partial candle is not in history.
+        sessions = [d for d in dates if d >= entry_date]
+        if entry_date not in sessions:
+            sessions.insert(0, entry_date)
+        current_date = pd.Timestamp.now(tz=IST).date()
+        if current_date >= entry_date and current_date not in sessions:
+            sessions.append(current_date)
+        return max(1, sum(1 for d in sessions if entry_date <= d <= current_date))
     except Exception:
         return 1
 
@@ -417,6 +429,11 @@ def _read_csv_or_empty(path, columns):
         return pd.DataFrame(columns=columns)
 
 
+def _read_csv(path, columns=None):
+    """Compatibility wrapper used by app/dashboard code."""
+    return _read_csv_or_empty(path, columns or [])
+
+
 def rotating_scan_batch(symbols, limit):
     """Return a rotating batch so large universes are covered over successive scans."""
     if not symbols:
@@ -450,8 +467,13 @@ def run_market_scan():
     buy_count = 0
     sell_count = 0
 
-    if not os.path.exists(SYMBOLS_FILE):
-        refresh_nifty500_symbols()
+    if not refresh_nse_equity_symbols():
+        set_scan_status(
+            "No data",
+            "NSE equity symbol list is missing or invalid; scan skipped",
+            scan_started,
+        )
+        return
     symbols_df = _read_csv_or_empty(SYMBOLS_FILE, ["Symbol"])
     if symbols_df.empty:
         set_scan_status("No data", "Symbol list is empty; scan not performed", scan_started)
