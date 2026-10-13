@@ -34,6 +34,21 @@
                 white-space: nowrap; /* Prevents text wrapping issues inside tables on mobile */
             }
         }
+        /* Slow down the Live Bot Activity scrolling ticker */
+        .activity-ticker-track {
+            animation-duration: 90s !important;
+        }
+
+        /* Pause scrolling when the mouse is over the ticker */
+        .activity-ticker:hover .activity-ticker-track {
+            animation-play-state: paused;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .activity-ticker-track {
+                animation: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-light">
