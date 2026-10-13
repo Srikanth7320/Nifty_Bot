@@ -1,5 +1,5 @@
 """Flask dashboard + Telegram control for a paper-trading bot. No live orders."""
-import os, threading, time, secrets
+import os, threading, time, secrets, tempfile
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import requests
@@ -19,6 +19,29 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE", "0") == "1")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 APPROVED_CHAT_ID = str(os.getenv("TELEGRAM_CHAT_ID") or "")
+
+# Serializes quantity updates handled by this Flask process.
+# CSV replacement is atomic so readers do not see a partially-written file.
+ACTIVE_UPDATE_LOCK = threading.RLock()
+
+def _write_active_csv_atomic(dataframe, destination):
+    destination = os.path.abspath(destination)
+    directory = os.path.dirname(destination) or "."
+    os.makedirs(directory, exist_ok=True)
+    fd, temp_path = tempfile.mkstemp(prefix=".active_stocks_", suffix=".tmp", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            dataframe.to_csv(handle, index=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, destination)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
 
 # NSE holidays change annually. Keep this list current from official NSE notices.
 NSE_HOLIDAYS = set(filter(None, os.getenv("NSE_HOLIDAYS", "").split(",")))
@@ -158,21 +181,35 @@ def cooling_page(): return render_template("cooling.html", cooling_stocks=_read_
 @app.route("/update_quantity", methods=["POST"])
 def update_quantity():
     symbol = str(request.form.get("symbol", "")).strip().upper()
-    try: quantity = int(request.form.get("quantity", ""))
-    except (TypeError, ValueError): quantity = 0
+
+    try:
+        quantity = int(request.form.get("quantity", ""))
+    except (TypeError, ValueError):
+        quantity = 0
+
     if not symbol or quantity < 1 or quantity > 1_000_000:
         flash("Quantity must be between 1 and 1,000,000.", "warning")
-        return redirect(url_for("active_page"))
-    from bot_engine import DATA_LOCK, _write_csv_atomic
-    with DATA_LOCK:
-        active = _read_csv(ACTIVE_FILE, ACTIVE_COLUMNS)
-        if not (active["symbol"].astype(str).str.upper() == symbol).any():
-            flash("Position not found.", "warning")
-        else:
-            active.loc[active["symbol"].astype(str).str.upper() == symbol, "quantity"] = quantity
-            _write_csv_atomic(active, ACTIVE_FILE)
-            flash(f"Updated {symbol} quantity to {quantity} (paper portfolio only).", "success")
-    return redirect(url_for("active_page"))
+        return redirect(url_for("active_page"), code=303)
+
+    try:
+        with ACTIVE_UPDATE_LOCK:
+            active = _read_csv(ACTIVE_FILE, ACTIVE_COLUMNS)
+            symbol_mask = active["symbol"].astype(str).str.upper() == symbol
+
+            if not symbol_mask.any():
+                flash("Position not found.", "warning")
+            else:
+                active.loc[symbol_mask, "quantity"] = quantity
+                _write_active_csv_atomic(active, ACTIVE_FILE)
+                flash(
+                    f"Updated {symbol} quantity to {quantity} (paper portfolio only).",
+                    "success",
+                )
+    except Exception:
+        app.logger.exception("Failed to update paper quantity for %s", symbol)
+        flash("Could not update quantity due to a file error. Check the application log.", "warning")
+
+    return redirect(url_for("active_page"), code=303)
 
 @app.route("/trigger_scan", methods=["POST"])
 def trigger_scan():
