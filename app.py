@@ -10,7 +10,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from bot_status import publish_status, recent_status
 from bot_engine import (run_market_scan, refresh_nse_equity_symbols, send_telegram,
     ACTIVE_FILE, SOLD_FILE, COOLING_FILE, TRADES_FILE, fetch_stock_data_with_fallback,
-    is_market_open, _read_csv, ACTIVE_COLUMNS, SOLD_COLUMNS, COOLING_COLUMNS, TRADE_COLUMNS, SCAN_INTERVAL_MINUTES)
+    is_market_open, get_provider_status, _read_csv, ACTIVE_COLUMNS, SOLD_COLUMNS, COOLING_COLUMNS, TRADE_COLUMNS, SCAN_INTERVAL_MINUTES)
 
 load_dotenv()
 IST = ZoneInfo("Asia/Kolkata")
@@ -93,8 +93,8 @@ def send_portfolio_summary(chat_id):
 
 def background_scheduler():
     publish_status("Background scheduler started.")
-    provider = "Upstox" if (os.getenv("UPSTOX_ACCESS_TOKEN") or os.getenv("UPSTOX_ANALYTICS_ACCESS_TOKEN") or "").strip() else "Yahoo Finance"
-    publish_status(f"Market-data provider selected: {provider}.", "success")
+    # This repository currently implements Yahoo Finance quotes only.
+    publish_status("Market-data provider: Yahoo Finance (Upstox quote integration is not implemented in this version).", "warning")
     publish_status("Dashboard has no login by design; keep it on localhost and use an SSH tunnel on GCP.", "info")
     refresh_nse_equity_symbols()
     schedule.every().day.at("08:00").do(refresh_nse_equity_symbols)
@@ -104,7 +104,7 @@ def background_scheduler():
 
 @app.route("/api/status")
 def api_status():
-    return jsonify({"events": recent_status(60)})
+    return jsonify({"events": recent_status(60), "provider": get_provider_status()})
 
 @app.route("/")
 def dashboard():
@@ -129,9 +129,8 @@ def about_page():
     from bot_engine import (MIN_PRICE, MAX_PRICE, RSI_BUY_THRESHOLD, RSI_MAX_BUY_THRESHOLD,
         RSI_EXIT_THRESHOLD, MAX_OPEN_POSITIONS, MAX_BUYS_PER_SCAN, MAX_SCAN_SYMBOLS,
         SCAN_INTERVAL_MINUTES, COOLING_HOURS, MIN_AVG_DAILY_TURNOVER_INR, MIN_AVG_DAILY_VOLUME)
-    token = (os.getenv("UPSTOX_ACCESS_TOKEN") or os.getenv("UPSTOX_ANALYTICS_ACCESS_TOKEN") or "").strip()
     return render_template("about.html",
-        provider_name="Upstox (token configured)" if token else "Yahoo Finance (no Upstox token configured)",
+        provider_name="Yahoo Finance (only implemented quote provider)",
         min_price=MIN_PRICE, max_price=MAX_PRICE, rsi_min=RSI_BUY_THRESHOLD, rsi_max=RSI_MAX_BUY_THRESHOLD,
         rsi_exit=RSI_EXIT_THRESHOLD, max_open=MAX_OPEN_POSITIONS, max_buys=MAX_BUYS_PER_SCAN,
         max_scan=MAX_SCAN_SYMBOLS, scan_interval=SCAN_INTERVAL_MINUTES, cooling_hours=COOLING_HOURS,

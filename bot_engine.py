@@ -79,7 +79,13 @@ def set_scan_status(provider, note, scan_time=None):
     LAST_SCAN_PROVIDER = str(provider)
     LAST_SCAN_NOTE = str(note)
     LAST_SCAN_TIME = scan_time or get_current_ist_time()
-    print(f"[SCAN STATUS] {LAST_SCAN_TIME} | {LAST_SCAN_PROVIDER} | {LAST_SCAN_NOTE}")
+    message = f"Last scan: {LAST_SCAN_PROVIDER} — {LAST_SCAN_NOTE}"
+    print(f"[SCAN STATUS] {LAST_SCAN_TIME} | {message}")
+    try:
+        from bot_status import publish_status
+        publish_status(message, "warning" if ("No usable" in LAST_SCAN_PROVIDER or "incomplete" in LAST_SCAN_NOTE.lower()) else "success")
+    except Exception:
+        pass
 
 
 def get_provider_status():
@@ -197,52 +203,170 @@ def fetch_stock_data_with_fallback(symbol):
 
 
 def fetch_news_and_fundamentals(symbol):
-    news_summary = "NewsAPI disabled (NEWS_API_KEY not configured)."
+    """Fetch news independently, then require explicit Gemini confirmation by default.
+
+    Returns (passed, explanation). Missing keys, no usable news, or API errors
+    are reported as incomplete and do not silently pass a new BUY candidate.
+    """
+    require_confirmation = os.getenv("REQUIRE_AI_NEWS_CONFIRMATION", "true").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+    headlines = []
+    news_status = "NewsAPI disabled"
+    news_error = None
+
     if NEWS_API_KEY:
         try:
             response = requests.get(
                 "https://newsapi.org/v2/everything",
-                params={"q": f'"{symbol}" stock India', "apiKey": NEWS_API_KEY, "pageSize": 3,
-                        "sortBy": "publishedAt", "language": "en"},
-                timeout=8,
+                params={
+                    "q": f'"{symbol}" AND (NSE OR shares OR stock OR company)',
+                    "apiKey": NEWS_API_KEY,
+                    "pageSize": 5,
+                    "sortBy": "publishedAt",
+                    "language": "en",
+                },
+                timeout=10,
             )
             response.raise_for_status()
             body = response.json()
-            if body.get("status") == "ok":
-                articles = body.get("articles", [])
-                titles = [a.get("title", "") for a in articles if a.get("title")]
-                news_summary = " ".join(titles) if titles else "No recent articles returned by NewsAPI."
-            else:
-                raise RuntimeError(body.get("message", "Unknown NewsAPI error"))
+            if body.get("status") != "ok":
+                raise RuntimeError(body.get("message", "NewsAPI returned non-ok status"))
+            for article in body.get("articles", []):
+                title = (article.get("title") or "").strip()
+                published = (article.get("publishedAt") or "").strip()
+                if title and title.lower() != "[removed]":
+                    headlines.append(f"{published}: {title}" if published else title)
+            news_status = f"NewsAPI returned {len(headlines)} headline(s)"
         except Exception as exc:
-            print(f"NewsAPI error for {symbol}: {exc}")
-            news_summary = f"NewsAPI unavailable: {type(exc).__name__}"
+            news_error = type(exc).__name__
+            news_status = f"NewsAPI unavailable ({news_error})"
+            print(f"NewsAPI request failed for {symbol}: {news_error}")
+    else:
+        news_error = "API key not configured"
 
-    if client is None:
-        # Preserve the existing project's behavior: technical-only approval when
-        # Gemini is not configured. This is explicitly labelled in the reason.
-        return True, f"Technical-only: Gemini disabled; {news_summary}"
+    if not GEMINI_API_KEY or client is None:
+        reason = f"Gemini unavailable/not configured; {news_status}"
+        return (not require_confirmation, "Technical-only mode: " + reason) if not require_confirmation else (False, "ANALYSIS INCOMPLETE: " + reason)
 
-    prompt = f"""Analyze NSE stock {symbol} using only information you can support.
-Recent news headlines: {news_summary}
-Assess whether available recent results/fundamentals appear sound. Do not invent
-financial data. Return exactly: Status: PASS or FAIL | Reason: short explanation.
-If there is insufficient reliable information, return FAIL.
+    if not headlines and require_confirmation:
+        return False, f"ANALYSIS INCOMPLETE: {news_status}; no relevant headlines to assess"
+
+    prompt = f"""You are a cautious research assistant supporting a PAPER-TRADING screen for NSE stock {symbol}.
+Use ONLY the supplied evidence. Do not claim to have live market data, browse the web, or invent financial metrics.
+Recent NewsAPI headlines (may be irrelevant or incomplete):
+{chr(10).join(headlines) if headlines else "No headlines supplied."}
+
+Evaluate only whether the supplied headlines contain material positive/negative risks or whether evidence is insufficient.
+Return exactly this format:
+STATUS: PASS or FAIL
+SENTIMENT: positive, neutral, negative, or insufficient
+RISK_FLAGS: comma-separated flags or none
+REASON: one concise sentence
+PASS only when evidence is sufficient and there is no clear material adverse signal. If evidence is insufficient, return FAIL.
 """
     try:
-        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
-        text = (getattr(response, "text", None) or "").strip()
-        upper = text.upper()
-        if not text or "STATUS: PASS" not in upper:
-            return False, text or "Gemini returned an empty response; blocked for safety."
-        if "STATUS: FAIL" in upper:
-            return False, text
-        return True, text
+        response = client.models.generate_content(model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"), contents=prompt)
+        answer = (getattr(response, "text", None) or "").strip()
+        upper = answer.upper()
+        if not answer or "STATUS: PASS" not in upper or "STATUS: FAIL" in upper:
+            return False, "Gemini did not provide an unambiguous PASS: " + (answer[:400] or "empty response")
+        return True, f"{news_status}; Gemini confirmed: {answer[:500]}"
     except Exception as exc:
-        # Fail closed: don't treat an API outage as a successful fundamentals check.
-        print(f"Gemini evaluation error for {symbol}: {exc}")
-        return False, f"Gemini unavailable; candidate skipped ({type(exc).__name__})."
+        print(f"Gemini evaluation failed for {symbol}: {type(exc).__name__}")
+        return False, f"ANALYSIS INCOMPLETE: Gemini request failed ({type(exc).__name__}); {news_status}"
 
+
+
+def calculate_atr(hist, window=14):
+    """Return the latest Average True Range, or NaN when history is insufficient."""
+    if hist is None or len(hist) < window or not all(c in hist.columns for c in ("High", "Low", "Close")):
+        return float("nan")
+    high, low, close = hist["High"], hist["Low"], hist["Close"]
+    previous_close = close.shift(1)
+    true_range = pd.concat([(high - low).abs(), (high - previous_close).abs(), (low - previous_close).abs()], axis=1).max(axis=1)
+    value = true_range.rolling(window=window).mean().iloc[-1]
+    return float(value) if pd.notna(value) else float("nan")
+
+
+def trading_sessions_held(history, entry_time):
+    """Count trading sessions held, counting the entry session as session one."""
+    try:
+        entry = pd.Timestamp(entry_time)
+        if entry.tzinfo is not None:
+            entry = entry.tz_convert(IST).tz_localize(None)
+        entry_date = entry.date()
+        if history is None or history.empty:
+            return 1
+        idx = pd.DatetimeIndex(history.index)
+        if idx.tz is not None:
+            idx = idx.tz_convert(IST).tz_localize(None)
+        dates = sorted(set(x.date() for x in idx))
+        # Include the entry date even when today's partial candle is not in history.
+        sessions = [d for d in dates if d >= entry_date]
+        if entry_date not in sessions:
+            sessions.insert(0, entry_date)
+        current_date = pd.Timestamp.now(tz=IST).date()
+        if current_date >= entry_date and current_date not in sessions:
+            sessions.append(current_date)
+        return max(1, sum(1 for d in sessions if entry_date <= d <= current_date))
+    except Exception:
+        return 1
+
+
+def _read_scan_cursor(universe_size):
+    """Read scan cursor for tests and rotating universe batches."""
+    cursor_file = os.path.join(DATA_DIR, "scan_cursor.txt")
+    try:
+        with open(cursor_file, "r", encoding="utf-8") as fh:
+            return int(fh.read().strip() or "0") % max(1, universe_size)
+    except (OSError, ValueError):
+        return 0
+
+
+def evaluate_swing_entry(hist, current_price, rsi):
+    """Apply the technical swing-entry filters and return (passed, explanations).
+
+    The live quote must break the prior 20 completed sessions' high; indicators
+    use historical daily candles only. This is a screening rule, not a guarantee.
+    """
+    reasons = []
+    if hist is None or len(hist) < 21:
+        return False, ["Insufficient price history"]
+    required = {"High", "Low", "Close", "Volume"}
+    if not required.issubset(hist.columns):
+        return False, ["Missing required OHLCV columns"]
+    close = pd.to_numeric(hist["Close"], errors="coerce")
+    high = pd.to_numeric(hist["High"], errors="coerce")
+    volume = pd.to_numeric(hist["Volume"], errors="coerce")
+    if pd.isna(current_price) or current_price <= 0 or pd.isna(rsi):
+        return False, ["Invalid quote or RSI"]
+    prior_high = float(high.iloc[-21:-1].max())
+    if float(current_price) <= prior_high:
+        reasons.append("Live price has not broken the prior 20-session high")
+    ema9 = close.ewm(span=9, adjust=False).mean().iloc[-1]
+    ema20 = close.ewm(span=20, adjust=False).mean().iloc[-1]
+    if not (ema9 > ema20):
+        reasons.append("EMA9 is not above EMA20")
+    if not (float(close.iloc[-1]) > ema20):
+        reasons.append("Last completed close is not above EMA20")
+    if not (50 <= float(rsi) <= 68):
+        reasons.append("RSI is outside the 50-68 entry range")
+    if len(volume) >= 21:
+        avg_volume = float(volume.iloc[-21:-1].mean())
+        if avg_volume <= 0 or float(volume.iloc[-1]) < 1.2 * avg_volume:
+            reasons.append("Latest volume is below 1.2x prior 20-session average")
+    else:
+        reasons.append("Insufficient volume history")
+    price_low = float(close.tail(252).min())
+    price_high = float(close.tail(252).max())
+    if price_high > price_low:
+        range_score = (float(current_price) - price_low) / (price_high - price_low)
+        if range_score < 0.60:
+            reasons.append("Price is below the upper 40% of its 52-week range")
+    if reasons:
+        return False, reasons
+    return True, ["All technical entry filters passed"]
 
 def evaluate_technicals(hist, current_price, rsi):
     if hist is None or len(hist) < 50 or pd.isna(rsi):
@@ -291,6 +415,24 @@ def _read_csv_or_empty(path, columns):
         return pd.DataFrame(columns=columns)
 
 
+def rotating_scan_batch(symbols, limit):
+    """Return a rotating batch so large universes are covered over successive scans."""
+    if not symbols:
+        return [], 0
+    limit = max(1, int(limit))
+    cursor_file = os.path.join(DATA_DIR, "scan_cursor.txt")
+    start = _read_scan_cursor(len(symbols))
+    count = min(limit, len(symbols))
+    batch = [symbols[(start + i) % len(symbols)] for i in range(count)]
+    next_start = (start + count) % len(symbols)
+    try:
+        with open(cursor_file, "w", encoding="utf-8") as fh:
+            fh.write(str(next_start))
+    except OSError as exc:
+        print(f"Could not persist scan cursor: {type(exc).__name__}")
+    return batch, start
+
+
 def run_market_scan():
     """Run one paper scan during market hours and publish its provider summary."""
     if not is_market_open():
@@ -314,7 +456,8 @@ def run_market_scan():
         return
     symbol_col = "Symbol" if "Symbol" in symbols_df.columns else symbols_df.columns[0]
     symbols = [str(s).strip().upper() for s in symbols_df[symbol_col].dropna().tolist() if str(s).strip()]
-    symbols = list(dict.fromkeys(symbols))[:MAX_SCAN_SYMBOLS]
+    symbols = list(dict.fromkeys(symbols))
+    symbols, _scan_start_index = rotating_scan_batch(symbols, MAX_SCAN_SYMBOLS)
 
     cooling_df = _read_csv_or_empty(COOLING_FILE, ["symbol", "time"])
     cooling_symbols = set(cooling_df["symbol"].astype(str).str.upper()) if not cooling_df.empty else set()
