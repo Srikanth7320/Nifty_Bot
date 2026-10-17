@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="mb-4">🟢 Active Bought Stocks</h2>
+<h2 class="mb-3">🟢 Active Bought Stocks</h2>
+<div class="alert alert-info py-2"><strong>Price mode:</strong> {% if market_open %}Live/intraday quote mode (Yahoo Finance; may be delayed).{% else %}Market closed — saved post-close snapshot is used when available; it remains unchanged until the next market session.{% endif %}</div>
 <div class="card shadow-sm border-0">
     <div class="card-body table-responsive">
         <table class="table align-middle table-hover">
@@ -22,7 +23,7 @@
                     <td class="fw-bold">{{ stock.symbol }}</td>
                     <td class="small text-muted">{{ stock.buy_time }}</td>
                     <td>₹{{ stock.buy_price }}</td>
-                    <td>{% if stock.current_price is not none %}₹{{ stock.current_price }}{% else %}<span class="text-muted">Unavailable</span>{% endif %}</td>
+                    <td>{% if stock.current_price is not none %}₹{{ stock.current_price }}<div class="small text-muted">{{ stock.price_source }}{% if stock.price_captured_at %}<br>{{ stock.price_captured_at }}{% endif %}</div>{% else %}<span class="text-muted">Unavailable</span>{% endif %}</td>
                     <td>
                         <form action="/update_quantity" method="POST" class="d-flex align-items-center">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
