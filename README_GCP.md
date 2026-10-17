@@ -1,25 +1,10 @@
-# All NSE EQ-Series Swing Paper-Trading Bot (1–5 Trading Sessions)
+# NSE Short-Term Momentum Playbook — SOP Paper-Trading Bot
 
 This application generates **paper-trading** entries/exits for short-term swing setups. It does not submit, modify, or cancel broker orders. Paper P&L is not real profit and this strategy has not been proven profitable.
 
-## 1. Automatic data-provider selection
+## 1. Market-data provider status
 
-Provider selection happens when the app starts:
-
-- **Empty `UPSTOX_ACCESS_TOKEN`** → use Yahoo Finance daily candles for indicators and Yahoo Finance intraday bars for a recent decision price.
-- **Non-empty `UPSTOX_ACCESS_TOKEN`** → use Upstox historical candles and the Upstox market-quote endpoint.
-
-When you receive your Upstox Analytics token, add it to `.env`:
-
-```env
-UPSTOX_ACCESS_TOKEN=paste_your_token_here
-```
-
-Then restart the app/service. You do not need to change Python code. Do not paste your real token into chat, Git, or a shared ZIP.
-
-**Important Yahoo Finance limitation:** Yahoo Finance data is not an official exchange feed and may be delayed, unavailable, or incomplete. In Yahoo mode, the bot accepts an intraday bar only if its timestamp is no older than `YFINANCE_MAX_QUOTE_AGE_MINUTES`. If no sufficiently recent bar is available, it skips that symbol for buy/sell decisions instead of treating the previous daily close as current. The quote is the close of a recent intraday bar, not a guaranteed live tick.
-
-If an Upstox token is configured but Upstox returns an error, the bot skips decisions for that symbol; it does not silently switch providers. To use Yahoo temporarily, empty the Upstox token and restart.
+This archive implements **Yahoo Finance daily history plus recent Yahoo intraday bars only**. The code in this archive does **not** implement Upstox quotes or Upstox historical candles, even if an Upstox token is present. Do not assume setting `UPSTOX_ACCESS_TOKEN` switches providers. Yahoo Finance is unofficial, can be delayed/incomplete/rate-limited, and is not an exchange-grade feed. During market hours the bot rejects missing or stale intraday bars rather than using yesterday's close for new trade decisions. No broker orders are submitted; this is paper trading only.
 
 ## 2. Configuration (`.env`)
 
@@ -36,16 +21,15 @@ Copy `.env.example` to `.env` and edit it. The `.env.example` template has empty
 | `MIN_AVG_DAILY_TURNOVER_INR` | `20000000` | Minimum average daily traded value over the prior 20 completed sessions (₹2 crore). |
 | `MIN_AVG_DAILY_VOLUME` | `10000` | Minimum average shares traded per day over the prior 20 completed sessions. |
 | `COOLING_PERIOD_HOURS` | `24` | Hours a sold symbol is blocked from re-entry. |
-| `YFINANCE_QUOTE_INTERVAL` | `5m` | Yahoo intraday bar interval when no Upstox token is configured. |
+| `YFINANCE_QUOTE_INTERVAL` | `5m` | Yahoo intraday bar interval. |
 | `YFINANCE_MAX_QUOTE_AGE_MINUTES` | `30` | Maximum age of the latest Yahoo bar for trade decisions. |
 | `RSI_BUY_THRESHOLD` | `50` | Lower bound of the RSI entry range. |
 | `RSI_MAX_BUY_THRESHOLD` | `68` | Upper bound of the RSI entry range. |
 | `RSI_EXIT_THRESHOLD` | `45` | RSI exit threshold. |
-| `UPSTOX_ACCESS_TOKEN` | empty | Empty selects Yahoo; non-empty selects Upstox. |
 
 `MAX_SCAN_SYMBOLS` controls how many stocks are scanned, not how many buy signals are sent. The bot may buy fewer than `MAX_BUYS_PER_SCAN`, including zero. It checks active positions separately so their exits are not omitted by the universe scan cap. The scan cursor is persisted in `data/scan_state.json`; batches wrap around the complete NSE universe, and if a scan stops early due to a buy/position cap it resumes from the next unprocessed symbol.
 
-The dashboard intentionally has **no login**, as requested. It includes a scrolling runtime ticker and an About & Rules page. It is bound to `127.0.0.1` by default and should only be accessed locally or through an SSH tunnel. Set a strong `FLASK_SECRET_KEY` for session/CSRF protection. Generate one with:
+The dashboard intentionally has **no login yet**, as requested. It is bound to `127.0.0.1` by default and should only be accessed locally or through an SSH tunnel. Set a strong `FLASK_SECRET_KEY` for session/CSRF protection. Generate one with:
 
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
@@ -55,25 +39,7 @@ Never expose port 5000 publicly. On GCP, access the dashboard using the SSH tunn
 
 ## 3. Strategy summary
 
-### Entry conditions
-
-1. Symbol is in the full NSE EQ-series equity universe and is neither active nor cooling down.
-2. Price is within the configured price range.
-3. Price is in the upper 40% of its 52-week range (range score at least 60%).
-4. A sufficiently fresh provider quote/bar is available.
-5. Average turnover over the prior 20 completed sessions is at least ₹2 crore by default, and average daily volume is at least 10,000 shares; both thresholds are configurable.
-6. Current price breaks above the highest high of the prior 20 completed daily candles.
-7. EMA(9) > EMA(20), and last completed daily close > EMA(20).
-8. RSI is between 50 and 68.
-9. Last completed daily volume is at least 1.2× the average of the preceding 20 completed sessions.
-10. Optional AI/news screening does not explicitly return FAIL; if unavailable, technical rules can still pass.
-11. The scan respects `MAX_OPEN_POSITIONS` and `MAX_BUYS_PER_SCAN`.
-
-### Exit conditions
-
-A position is paper-sold if price falls below EMA(9), RSI falls below `RSI_EXIT_THRESHOLD`, price falls below its recorded peak minus 2× the entry ATR(14), or the maximum five-session holding window is reached. There is no fixed percentage stop-loss or take-profit. The ATR exit does not guarantee a maximum loss; gaps and delayed/missing quotes can cause worse real-world outcomes.
-
-Indicators use completed daily candles. The scan interval does not turn the strategy into a 15-minute-candle strategy.
+New entries are accepted only when the SOP technical setup, manual external-data checklist, liquidity requirements, news gate, position sizing and session timing all pass. The external checklist is fail-closed: unknown circuit/surveillance/pledging/institutional/catalyst/delivery data blocks the entry. Existing paper positions are managed using stop-loss, staged partial exits, breakeven protection, runner trailing and emergency exit rules. See **Section 6: Mandatory SOP enforcement added** for the exact fields and thresholds.
 
 ## 4. Run locally
 
@@ -88,7 +54,7 @@ cp .env.example .env
 python app.py
 ```
 
-The bot scheduler starts with the app. The dashboard defaults to `http://127.0.0.1:5000` and has no login, shows a scrolling status ticker, and includes an About & Rules page.
+The bot scheduler starts with the app. The dashboard defaults to `http://127.0.0.1:5000` and intentionally has no login yet.
 
 ## 5. Deploy on Google Cloud Platform (Compute Engine VM)
 
@@ -129,7 +95,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Check the `.env` file before starting. Keep the Upstox token empty until it is issued; Yahoo mode will be selected automatically.
+Check the `.env` file before starting. This archive currently uses Yahoo Finance only; an Upstox token will not change the provider until Upstox integration is implemented.
 
 ### C. Run it as a persistent service
 
@@ -144,10 +110,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=kvslakshmi77
+User=YOUR_LINUX_USERNAME
 WorkingDirectory=/opt/niftybot
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/niftybot/.venv/bin/python3 /opt/niftybot/app.py
+ExecStart=/opt/niftybot/.venv/bin/python /opt/niftybot/app.py
 Restart=always
 RestartSec=10
 
@@ -184,14 +150,11 @@ Keep `FLASK_HOST=127.0.0.1` in `.env`; do not open port 5000 in a GCP firewall. 
 gcloud compute ssh INSTANCE_NAME --zone ZONE -- -N -L 5000:127.0.0.1:5000
 ```
 
-Keep that terminal open, then visit `http://127.0.0.1:5000` in your browser. There is no login; keep the tunnel private and do not expose port 5000 to the internet. Close the tunnel with Ctrl+C when finished.
+Keep that terminal open, then visit `http://127.0.0.1:5000` in your browser. There is no login yet; keep the tunnel private and do not expose port 5000 to the internet. Close the tunnel with Ctrl+C when finished.
 
-### E. Update to Upstox later
+### E. Upstox integration status
 
-1. Edit `/opt/niftybot/.env` on the VM and set `UPSTOX_ACCESS_TOKEN` to your token.
-2. Keep the token private and the file permission at `600`.
-3. Restart: `sudo systemctl restart niftybot`.
-4. Check `sudo journalctl -u niftybot -n 100` for provider errors. With a non-empty token, the bot selects Upstox. If Upstox data/quotes fail, that symbol is skipped rather than silently using a stale price.
+Upstox integration is not included in this archive. Receiving a token will not activate Upstox until a real quote/history adapter is implemented and tested. Continue with Yahoo only if its limitations are acceptable, or wait for the Upstox adapter before relying on this bot.
 
 ### F. Persist and back up paper-trading data
 
@@ -218,8 +181,37 @@ The full NSE EQ-series symbol universe is refreshed from NSE's official equity-l
 - Keep the dashboard private, keep secrets out of Git/ZIP files, and rotate any credential that may have been exposed.
 
 
-## Live dashboard status ticker
+## Dashboard status ticker and About page
 
-The dashboard now includes a continuously scrolling status ticker and a recent-activity panel. It polls the local `/api/status` endpoint every three seconds and reports the configured market-data provider (Upstox when a token is set, otherwise Yahoo Finance), universe refresh results, scan start/progress/completion, data warnings, and paper BUY/SELL records. Status messages are kept in a bounded in-memory buffer and are not durable across a process restart; operational logs also go to the service journal. The ticker is informational and does not mean quotes are real-time or guaranteed.
+The dashboard displays a scrolling runtime ticker for provider selection, NSE universe refresh, scan progress, warnings and paper signals. Open **About & Rules** to see entry/exit conditions and current configuration. There is no login; keep the dashboard bound to `127.0.0.1` and use an SSH tunnel on GCP.
 
-The dashboard remains unauthenticated by request, so keep `FLASK_HOST=127.0.0.1` and access it on GCP using an SSH tunnel. Do not open port 5000 to the internet. The status endpoint is subject to the same localhost-only access boundary.
+## API startup checks and supplementary news RSS
+
+Before launching the dashboard/scheduler, the bot checks Yahoo Finance quote access, NewsAPI, Gemini, and Telegram. If any required check fails, startup aborts; fix the integration/network issue and restart. Google News RSS is checked as a supplementary source, but an RSS outage alone does not fail the required integration check.
+
+At 08:00 IST each day, required integrations are checked again and a Telegram status alert is sent. If a required pre-market check fails, the process sets `REQUIRE_AI_NEWS_CONFIRMATION=false` for the day as a clearly logged technical-only fallback. This does not make news confirmation complete; BUY signals and logs should be understood as operating without full AI/news confirmation during that fallback. A healthy pre-market check restores the configured value.
+
+For each candidate, the bot queries NewsAPI and Google News RSS independently, including RSS when NewsAPI succeeds. It merges/deduplicates the headlines and passes source labels to Gemini. RSS is supplementary only: while `REQUIRE_AI_NEWS_CONFIRMATION=true`, NewsAPI must succeed and return at least one usable headline, and Gemini must return an unambiguous PASS. RSS-only headlines never satisfy the NewsAPI requirement.
+
+Create your private `.env` from `.env.example`; do not share or commit `.env`.
+
+## 6. Mandatory SOP enforcement added
+
+The entry workflow now uses a strict SOP gate rather than the legacy 52-week momentum score alone:
+
+- **Weekly/daily trend:** 30-week SMA, Price > EMA9 > EMA20 > SMA50, rising EMA9/EMA20, and an approximate higher-high/higher-low check.
+- **Momentum/volatility:** RSI 55–68, MACD(12,26,9) positive/expanding, Bollinger squeeze/expansion, ATR(14), a 2–6 week compressed base, breakout trigger, and intraday volume relative to the prior 20-day average.
+- **Two entry setups:** Setup A high-volume shelf breakout; Setup B overbought-spike pullback/retest with declining volume and intraday green reversal. New entries are limited to 10:00–14:30 IST.
+- **Liquidity:** average 20-session traded value and share volume minimums remain mandatory.
+- **Risk sizing:** position size is capped at 1.5% of configured capital risk and available capital; the bot requires at least 4 shares so 50%/25%/25% staged exits are feasible. Configure `TRADING_CAPITAL_INR` to the actual paper-account capital.
+- **Exit management:** stop loss, target 1 (50% partial), breakeven stop, round-number rejection partial, EMA20/EMA9 runner trail, emergency RSI/MACD/distribution exits, and a 15-session time exit.
+- **External checks are fail-closed:** `data/sop_external_checks.csv` must contain a row for the symbol and current date. Circuit band, promoter pledge, FII/DII status, ASM/GSM, sector tailwind, catalyst, board meeting date, dilution, and delivery-volume ratio cannot be reliably inferred from Yahoo or RSS. Missing/unknown values block entry. `PASS` values must be based on your own verified NSE/company disclosures; do not enter guessed values.
+- **News:** NewsAPI and Google News RSS are both queried; RSS is supplementary. Strict news confirmation still requires usable NewsAPI evidence and an unambiguous Gemini PASS.
+
+### External checklist CSV values
+
+Use one row per symbol per trading date. Expected values include `institutional_status=PASS`, `sector_tailwind_status=PASS`, `catalyst_status=PASS`, `equity_dilution_status=CLEAR`, and `surveillance_stage=NONE` or a verified stage below 2. `circuit_band_pct` must be `10` or `20`; `promoter_pledge_pct` must be below `10`; `delivery_volume_ratio` must be at least `1.2` by default. `board_meeting_date` should be the verified next earnings-related board date; leave blank only if you intend the strict gate to block the trade. `as_of_date` must match the current IST date exactly.
+
+### Important implementation limitations
+
+This is still **paper trading only**. The project does not submit broker orders. Yahoo Finance is unofficial and can be delayed; the bot rejects stale/missing intraday bars, but this does not make Yahoo an exchange-grade feed. The SOP's wick-angle, true multi-swing HH/HL, bearish RSI divergence, sector-wide breadth, corporate catalyst materiality, and NSE delivery/circuit/surveillance checks are approximated or manually supplied, not independently validated from official feeds. The external CSV is a control mechanism, not a live NSE integration. Validate on historical data and paper trade before considering any real capital.

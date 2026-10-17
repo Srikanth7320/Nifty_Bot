@@ -1,1 +1,3 @@
 The full NSE EQ-series universe is downloaded from the official NSE equity list into nse_equity_symbols.csv at startup. If NSE is temporarily unavailable, a previously downloaded full-universe cache is retained. A fresh install with no valid cache skips scans rather than silently using a partial sample.
+
+closing_prices.json is generated automatically by the app after market close. It stores the last successfully captured NSE website post-close last-traded price per active symbol, with date, timestamp, and source. Do not hand-edit unless you understand the snapshot format. Failed refreshes retain the previous saved value.

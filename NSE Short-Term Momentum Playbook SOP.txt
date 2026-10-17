@@ -1,0 +1,227 @@
+================================================================================
+STANDARD OPERATING PROCEDURE (SOP): 1–2 WEEK HIGH-MOMENTUM SWING TRADING (NSE)
+================================================================================
+System Objective: Identify, validate, enter, and exit high-momentum stocks on the
+National Stock Exchange (NSE) poised to deliver 15%–25%+ moves over a 5 to 15 
+trading session holding period, while eliminating capital drawdown risk.
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE 1: BACKGROUND & STRUCTURAL SCREENING (NSE SPECIFIC)
+--------------------------------------------------------------------------------
+
+1.1 CIRCUIT FILTER SCRUTINY
+   * Rule: Check the daily price circuit band on NSE (5%, 10%, or 20%).
+   * Criteria: Only trade stocks in the 10% or 20% circuit bracket.
+   * Reason: Stocks capped at a 5% band create severe liquidity locks. If an unexpected 
+     negative event hits, the counter can lock in consecutive lower circuits, 
+     making stop-loss execution impossible and trapping capital.
+
+1.2 PROMOTER QUALITY & SHARE CAPITAL INTEGRITY
+   * Pledged Shares: Promoter share pledging must be under 10% (ideally 0%). High 
+     pledging leads to sudden institutional shorting or margin liquidation selloffs.
+   * Institutional Participation: Look for FII/DII holding expansion or steady 
+     institutional footprint over the last 2 quarters.
+   * Surveillance Lists: Ensure the counter is NOT placed under GSM (Graded 
+     Surveillance Measure) or ASM (Additional Surveillance Measure) Stage 2 or above.
+
+1.3 SECTOR & THEMATIC TAILWINDS
+   * Focus on sectors benefiting from active capital expenditure (Capex), policy 
+     incentives, or structural supply shortages (e.g., Telecom Infra, Defence, 
+     Capital Goods, Power/Renewables, Railways).
+   * Over 75% of aggressive 2-week runners are backed by a sector-wide tailwind rather 
+     than an isolated company event.
+
+--------------------------------------------------------------------------------
+MODULE 2: CATALYSTS & NEWS RADAR (THE IGNITION TRIGGERS)
+--------------------------------------------------------------------------------
+
+Fast 15%–25% moves do not happen without fresh market fuel. Monitor these specific
+triggers via NSE/BSE corporate announcement feeds:
+
+2.1 ORDER BOOK & CONTRACT EXPANSION (FOR MANUFACTURING, EPC, TELECOM, DEFENCE)
+   * Trigger Threshold: A single contract or work order value equal to >= 10%–15% 
+     of the company's previous financial year's total revenue.
+   * Margin Quality: Disclosures specifying high-margin product delivery, turnkey 
+     systems, or export contracts carry 2x more bullish momentum than low-margin 
+     civil work.
+
+2.2 EARNINGS SURPRISES (QoQ & YoY)
+   * The "Beat and Expand" Formula:
+     - Net profit growth >= 20% YoY, accompanied by operating profit margin (OPM) 
+       expansion of at least 150–200 basis points.
+     - Upward revision in management guidance or significant order backlog additions.
+
+2.3 POLICY & REGULATORY CATALYSTS
+   * PLI (Production-Linked Incentive) approvals or subsidy disbursements.
+   * Government tender allocations (e.g., BharatNet, Kavach railway safety, BSNL 4G/5G).
+   * Anti-Dumping Duty (ADD) notifications by the Directorate General of Trade 
+     Remedies (DGTR) against foreign competitors (e.g., Chinese optical fiber or steel).
+
+2.4 CORPORATE ACTIONS TO AVOID BEFORE ENTRY
+   * DO NOT enter swing trades within 3 trading days prior to scheduled board meetings 
+     for earnings announcements (binary overnight gap risk).
+   * Avoid counters announcing equity dilution via Qualified Institutional Placement (QIP) 
+     or convertible warrant issues at significant discounts to the market price.
+
+--------------------------------------------------------------------------------
+MODULE 3: CHART PATTERNS & MULTI-TIMEFRAME TREND SETUP
+--------------------------------------------------------------------------------
+
+3.1 WEEKLY TIMEFRAME (MACRO TREND ALIGNMENT)
+   * The stock must be trading above its 30-week (150-day) Simple Moving Average.
+   * The multi-month trend must be sideways-to-up (stage 2 accumulation/markup). 
+     Never buy a counter in a stage 4 multi-month markdown.
+
+3.2 DAILY TIMEFRAME (MOMENTUM STRUCTURE)
+   * Multi-Week Base: Look for a 2- to 6-week tight horizontal consolidation range 
+     (volatility contraction) where daily candles get progressively smaller.
+   * Moving Average Stack: 
+     - Price > 9 EMA > 20 EMA > 50 SMA.
+     - 9 EMA and 20 EMA must be sloped upward at a 30° to 45° angle.
+   * Stair-Step Structure: The daily chart must show definitive Higher Highs (HH) 
+     and Higher Lows (HL).
+
+3.3 THE CANDLESTICK TRIGGER PATTERN
+   * Look for a decisive Bullish Marubozu, High-Volume Engulfing candle, or a clean 
+     range breakout candle closing near its intraday high (wick ratio < 15% of total body).
+
+--------------------------------------------------------------------------------
+MODULE 4: TECHNICAL INDICATOR MATRIX & THRESHOLDS
+--------------------------------------------------------------------------------
+
+Indicator Settings:
+- Relative Strength Index (RSI): 14 Periods, standard close.
+- MACD: 12, 26, 9 (Fast EMA, Slow EMA, Signal).
+- Bollinger Bands: 20 SMA length, 2 standard deviations.
+- Average True Range (ATR): 14 Periods.
+- Average Volume: 20-day Simple Moving Average.
+
+4.1 RSI CRITERIA
+   * Ideal Breakout Sweet Spot: 55 to 68. 
+     (Shows existing upward momentum with substantial room before exhaustion).
+   * Overbought Hard Filter: If daily RSI is >= 75–80, DO NOT chase the initial spike. 
+     Wait for a 2-to-3 day mean reversion consolidation.
+   * Divergence Check: Ensure RSI is confirming new price highs (no bearish divergence).
+
+4.2 MACD CRITERIA
+   * The MACD line must be crossed cleanly above the Signal line.
+   * The histogram bars must be expanding in height above the zero line.
+   * Best setups feature a MACD crossover that takes place just beneath or slightly 
+     above the zero baseline as the base breakout occurs.
+
+4.3 VOLUME & NSE DELIVERY VALIDATION (THE INSTITUTIONAL FOOTPRINT)
+   * Total Daily Volume: Must print at least 2x to 3x the 20-day average volume on the 
+     breakout day.
+   * NSE Security-Wise Delivery Check:
+     - On the breakout day, delivery volume must register a noticeable surge alongside 
+       total traded volume (indicating genuine delivery-based accumulation rather than 
+       pure intraday churn/scalping).
+   * Dry-Up Test: During any minor 2-to-3 session pullback, volume must drop below 
+     the 20-day average by 40%–50%.
+
+4.4 BOLLINGER BANDS (VOLATILITY EXPANSION)
+   * Prior State: Bollinger Bands must have contracted into a tight squeeze during base 
+     consolidation (Bandwidth at multi-week lows).
+   * Trigger: Price breaks cleanly outside the upper Bollinger Band, with both upper 
+     and lower bands expanding outwards simultaneously (volatility explosion).
+
+--------------------------------------------------------------------------------
+MODULE 5: EXECUTION — THE BUY INSTRUCTIONS (TWO APPROVED ENTRY TYPES)
+--------------------------------------------------------------------------------
+
+Wait for the first 30–45 minutes of the NSE market session (9:15 AM to 10:00 AM IST) 
+to clear out opening volatility before taking action.
+
+5.1 ENTRY TYPE A: THE HIGH-VOLUME SHELF BREAKOUT
+   * Condition: Price closes or decisively trades above the multi-week horizontal 
+     resistance ceiling between 10:00 AM and 2:30 PM.
+   * Validation: Cumulative volume is already outpacing the 20-day average.
+   * Action: Place a Limit Order at or 0.3% above the breakout level.
+
+5.2 ENTRY TYPE B: THE LOW-VOLUME 9/20 EMA RETEST (THE DIP ENTRY)
+   * Condition: The stock experienced a major news/earnings spike, reached overbought 
+     levels (RSI > 75), and is now pulling back.
+   * Validation: Price retraces over 2–4 trading days on declining volume to touch 
+     the rising 9 EMA or the prior breakout resistance-turned-support shelf.
+   * Action: Place an entry order once an intraday green reversal candle forms at 
+     the moving average support zone.
+
+--------------------------------------------------------------------------------
+MODULE 6: RISK MANAGEMENT & SIZING (FIXED VS. DYNAMIC)
+--------------------------------------------------------------------------------
+
+Compare both models below and choose the one matching your risk appetite:
+
+================================================================================
+CRITERION            | MODEL A: FIXED-PERCENTAGE       | MODEL B: DYNAMIC (VOLATILITY/ATR)
+================================================================================
+Primary Goal         | Simplicity & strict rules       | Tailored to stock volatility
+---------------------|---------------------------------|--------------------------------
+Stop-Loss Placement  | Exactly 3.5% to 5.0% below the  | 1.5 x ATR(14) below entry price,
+                     | executed entry price.           | OR 0.5% below the immediate 
+                     |                                 | daily swing low / 20 EMA.
+---------------------|---------------------------------|--------------------------------
+Target 1 (Book 50%)  | +8.0% to +10.0% gain from       | 2.0 x Risk Amount (R:R = 1:2),
+                     | entry price.                    | OR nearest major swing resistance.
+---------------------|---------------------------------|--------------------------------
+Target 2 (Runner)    | +16.0% to +20.0%+ gain from     | Major psychological round number
+                     | entry price.                    | (e.g., ₹250, ₹500, ₹1000) or 1:3 R:R.
+---------------------|---------------------------------|--------------------------------
+Position Sizing      | Position Size =                 | Position Size = 
+                     | (Total Capital x 1.5% Max Risk) | (Total Capital x 1.5% Max Risk)
+                     | / (Entry Price x 0.05).         | / (Entry Price - Stop Loss Price).
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE 7: THE SELL INSTRUCTIONS (STEP-BY-STEP PROFIT SECURING & EXIT)
+--------------------------------------------------------------------------------
+
+Follow these exit steps strictly in chronological sequence:
+
+7.1 STEP 1: CAPITAL PRESERVATION (STOP-LOSS TRIGGER)
+   * Execution: If the stock closes below your chosen Stop-Loss level (Fixed: -4% to -5%; 
+     Dynamic: 1.5 ATR / 20 EMA breakdown), SELL 100% OF THE POSITION IMMEDIATELY.
+   * Non-Negotiable: Never average down a losing short-term swing trade. Never hope.
+
+7.2 STEP 2: REACHING TARGET 1 (DE-RISKING THE POSITION)
+   * Trigger: Price reaches Target 1 (Fixed: +8% to +10%; Dynamic: 1:2 R:R resistance).
+   * Execution:
+     1. SELL 50% of your total holding to realize hard cash gains.
+     2. Immediately revise the Stop-Loss order on the remaining 50% shares to your 
+        EXACT BREAKEVEN ENTRY PRICE.
+     3. Outcome: The trade is now mathematically zero-risk. Capital is 100% protected.
+
+7.3 STEP 3: PSYCHOLOGICAL ROUND NUMBERS & REJECTION WICKS
+   * Trigger: The remaining shares surge toward a prominent milestone number 
+     (e.g., ₹250, ₹500, ₹750, ₹1000).
+   * Indicator: An intraday candle prints a long upper shadow/wick on heavy volume, 
+     showing that institutional sell limit orders are capping the move.
+   * Execution: SELL AN ADDITIONAL 25% of your original position. Keep the final 25% 
+     for the trend run.
+
+7.4 STEP 4: TRAILING THE FINAL RUNNER POSITION
+   * Rule for Normal Uptrend:
+     - Keep the remaining runner shares active as long as daily candle bodies close 
+       above the rising 20 EMA.
+     - Exit on the first daily close below the 20 EMA.
+   * Rule for Parabolic Runners (>15% gain inside 5 sessions):
+     - Tighten the trailing exit to a daily close below the rising 9 EMA, OR
+     - A daily breakdown below the previous session's lowest traded price.
+
+7.5 STEP 5: EMERGENCY EARLY TECHNICAL EXITS (OVERRIDE ALL TARGETS)
+   Liquidate 100% of all open shares immediately during market hours if ANY of these 
+   four technical breakdown conditions emerge:
+   1. Bearish RSI Divergence: The stock prints a higher daily high, but RSI forms 
+      a visibly lower high.
+   2. RSI Exhaustion Reversal: Daily RSI shoots above 80–82 (climax blow-off) and 
+      promptly crosses back beneath 70 on increasing volume.
+   3. Bearish MACD Cross: MACD line crosses below the Signal line while elevated in 
+      positive territory.
+   4. Institutional Distribution Candle: A wide-range red candle appears with trading 
+      volume >= 2x the 20-day average that erases the cumulative price gains of 
+      the preceding 2 to 3 sessions.
+
+================================================================================
+END OF STANDARD OPERATING PROCEDURE
+================================================================================
