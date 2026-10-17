@@ -1,0 +1,7 @@
+time,symbol,price,type,quantity,reason,pnl
+2026-10-13 09:31:57,BBOX,923.1500244140624,BUY,1,"1–5 session swing breakout (breakout=PASS, trend=PASS, rsi=PASS, volume=PASS)",0.0
+2026-10-13 09:47:13,BLUSPRING,160.75,BUY,1,"1–5 session swing breakout (breakout=PASS, trend=PASS, rsi=PASS, volume=PASS)",0.0
+2026-10-13 10:03:01,DHANBANK,34.29999923706055,BUY,1,"1–5 session swing breakout (breakout=PASS, trend=PASS, rsi=PASS, volume=PASS)",0.0
+2026-10-13 11:54:22,TFCILTD,156.52999877929688,BUY,1,"1–5 session swing breakout (breakout=PASS, trend=PASS, rsi=PASS, volume=PASS)",0.0
+2026-10-13 12:09:46,UNITEDPOLY,50.290000915527344,BUY,1,"1–5 session swing breakout (breakout=PASS, trend=PASS, rsi=PASS, volume=PASS)",0.0
+2026-10-13 12:56:37,CYIENT,1175.9000244140625,BUY,1,"1–5 session swing breakout (breakout=PASS, trend=PASS, rsi=PASS, volume=PASS)",0.0
